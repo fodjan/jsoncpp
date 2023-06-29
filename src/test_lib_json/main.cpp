@@ -3,6 +3,7 @@
 // recognized in your jurisdiction.
 // See file LICENSE for detail or copy at http://jsoncpp.sourceforge.net/LICENSE
 
+#include "json/forwards.h"
 #if defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -79,6 +80,7 @@ struct ValueTest : JsonTest::TestCase {
   Json::Value emptyString_{""};
   Json::Value string1_{"a"};
   Json::Value string_{"sometext with space"};
+  Json::Value string2_{"b"};
   Json::Value true_{true};
   Json::Value false_{false};
 
@@ -214,6 +216,12 @@ JSONTEST_FIXTURE_LOCAL(ValueTest, objects) {
   JSONTEST_ASSERT_EQUAL(Json::Value(1234), constObject["id"]);
   JSONTEST_ASSERT_EQUAL(Json::Value(), constObject["unknown id"]);
 
+#ifdef JSONCPP_STRING_VIEW
+  JSONTEST_ASSERT_EQUAL(Json::Value(1234), constObject[Json::StringView("id")]);
+  JSONTEST_ASSERT_EQUAL(Json::Value(),
+                        constObject[Json::StringView("unknown id")]);
+#endif
+
   // Access through find()
   const char idKey[] = "id";
   const Json::Value* foundId = object1_.find(idKey, idKey + strlen(idKey));
@@ -256,11 +264,29 @@ JSONTEST_FIXTURE_LOCAL(ValueTest, objects) {
   JSONTEST_ASSERT_EQUAL(Json::Value("bar"), got);
   JSONTEST_ASSERT_EQUAL(false, did);
 
+#ifdef JSONCPP_STRING_VIEW
+  object1_["some other id"] = "foo";
+  did = object1_.removeMember(Json::StringView("some other id"), &got);
+  JSONTEST_ASSERT_EQUAL(Json::Value("foo"), got);
+  JSONTEST_ASSERT_EQUAL(true, did);
+  got = Json::Value("bar");
+  did = object1_.removeMember(Json::StringView("some other id"), &got);
+  JSONTEST_ASSERT_EQUAL(Json::Value("bar"), got);
+  JSONTEST_ASSERT_EQUAL(false, did);
+#endif
+
   object1_["some other id"] = "foo";
   Json::Value* gotPtr = nullptr;
   did = object1_.removeMember("some other id", gotPtr);
   JSONTEST_ASSERT_EQUAL(nullptr, gotPtr);
   JSONTEST_ASSERT_EQUAL(true, did);
+
+#ifdef JSONCPP_STRING_VIEW
+  object1_["some other id"] = "foo";
+  did = object1_.removeMember(Json::StringView("some other id"), gotPtr);
+  JSONTEST_ASSERT_EQUAL(nullptr, gotPtr);
+  JSONTEST_ASSERT_EQUAL(true, did);
+#endif
 
   // Using other removeMember interfaces, the test idea is the same as above.
   object1_["some other id"] = "foo";
@@ -521,6 +547,34 @@ JSONTEST_FIXTURE_LOCAL(ValueTest, strings) {
 
   JSONTEST_ASSERT_STRING_EQUAL("a", string1_.asString());
   JSONTEST_ASSERT_STRING_EQUAL("a", string1_.asCString());
+
+#ifdef JSONCPP_STRING_VIEW
+  JSONTEST_ASSERT_EQUAL(Json::stringValue, string2_.type());
+
+  checks.isString_ = true;
+  JSONTEST_ASSERT_PRED(checkIs(emptyString_, checks));
+  JSONTEST_ASSERT_PRED(checkIs(string_, checks));
+  JSONTEST_ASSERT_PRED(checkIs(string2_, checks));
+
+  // Empty string okay
+  JSONTEST_ASSERT(emptyString_.isConvertibleTo(Json::nullValue));
+
+  // Non-empty string not okay
+  JSONTEST_ASSERT(!string2_.isConvertibleTo(Json::nullValue));
+
+  // Always okay
+  JSONTEST_ASSERT(string2_.isConvertibleTo(Json::stringValue));
+
+  // Never okay
+  JSONTEST_ASSERT(!string2_.isConvertibleTo(Json::objectValue));
+  JSONTEST_ASSERT(!string2_.isConvertibleTo(Json::arrayValue));
+  JSONTEST_ASSERT(!string2_.isConvertibleTo(Json::intValue));
+  JSONTEST_ASSERT(!string2_.isConvertibleTo(Json::uintValue));
+  JSONTEST_ASSERT(!string2_.isConvertibleTo(Json::realValue));
+
+  JSONTEST_ASSERT_STRING_EQUAL("b", string2_.asString());
+  JSONTEST_ASSERT_STRING_EQUAL("b", string2_.asCString());
+#endif
 }
 
 JSONTEST_FIXTURE_LOCAL(ValueTest, bools) {
@@ -1870,6 +1924,19 @@ JSONTEST_FIXTURE_LOCAL(ValueTest, CommentBefore) {
                  Json::commentBefore);
   Json::StreamWriterBuilder wbuilder;
   wbuilder.settings_["commentStyle"] = "All";
+  {
+    char const expected[] = "// this comment should appear before\nnull";
+    Json::String result = Json::writeString(wbuilder, val);
+    JSONTEST_ASSERT_STRING_EQUAL(expected, result);
+    Json::String res2 = val.toStyledString();
+    Json::String exp2 = "\n";
+    exp2 += expected;
+    exp2 += "\n";
+    JSONTEST_ASSERT_STRING_EQUAL(exp2, res2);
+  }
+  val = Json::Value();
+  val.setComment(Json::StringView("// this comment should appear before"),
+                 Json::commentBefore);
   {
     char const expected[] = "// this comment should appear before\nnull";
     Json::String result = Json::writeString(wbuilder, val);
@@ -3498,6 +3565,11 @@ JSONTEST_FIXTURE_LOCAL(CharReaderAllowNumericKeysTest, allowNumericKeys) {
   JSONTEST_ASSERT_EQUAL(true, root.get("15", false));
   JSONTEST_ASSERT_EQUAL(true, root.get("-16", false));
   JSONTEST_ASSERT_EQUAL(true, root.get("12.01", false));
+#ifdef JSONCPP_STRING_VIEW
+  JSONTEST_ASSERT_EQUAL(true, root.get(Json::StringView("15"), false));
+  JSONTEST_ASSERT_EQUAL(true, root.get(Json::StringView("-16"), false));
+  JSONTEST_ASSERT_EQUAL(true, root.get(Json::StringView("12.01"), false));
+#endif
 }
 
 struct CharReaderAllowSingleQuotesTest : JsonTest::TestCase {};
@@ -3707,9 +3779,18 @@ JSONTEST_FIXTURE_LOCAL(BuilderTest, settings) {
     Json::CharReaderBuilder rb;
     JSONTEST_ASSERT_EQUAL(false, rb.settings_.isMember("foo"));
     JSONTEST_ASSERT_EQUAL(true, rb.validate(&errs));
+#ifdef JSONCPP_STRING_VIEW
+    JSONTEST_ASSERT_EQUAL(false,
+                          rb.settings_.isMember(Json::StringView("foo")));
+    JSONTEST_ASSERT_EQUAL(true, rb.validate(&errs));
+#endif
     rb["foo"] = "bar";
     JSONTEST_ASSERT_EQUAL(true, rb.settings_.isMember("foo"));
     JSONTEST_ASSERT_EQUAL(false, rb.validate(&errs));
+#ifdef JSONCPP_STRING_VIEW
+    JSONTEST_ASSERT_EQUAL(true, rb.settings_.isMember(Json::StringView("foo")));
+    JSONTEST_ASSERT_EQUAL(false, rb.validate(&errs));
+#endif
   }
   {
     Json::Value errs;
