@@ -97,6 +97,11 @@ extern JSON_API int msvc_pre1900_c99_snprintf(char* outBuf, size_t size,
 #define JSON_USE_INT64_DOUBLE_CONVERSION 1
 #endif
 
+#if __cplusplus >= 201606L
+#include <string_view>
+#define JSONCPP_STRING_VIEW std::string_view
+#endif // if __cplusplus >= 201606L
+
 #if !defined(JSON_IS_AMALGAMATION)
 
 #include "allocator.h"
@@ -130,6 +135,11 @@ using Allocator =
     typename std::conditional<JSONCPP_USING_SECURE_MEMORY, SecureAllocator<T>,
                               std::allocator<T>>::type;
 using String = std::basic_string<char, std::char_traits<char>, Allocator<char>>;
+
+#ifdef JSONCPP_STRING_VIEW
+using StringView = std::basic_string_view<char, std::char_traits<char>>;
+#endif // ifdef JSONCPP_STRING_VIEW
+
 using IStringStream =
     std::basic_istringstream<String::value_type, String::traits_type,
                              String::allocator_type>;

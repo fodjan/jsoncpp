@@ -3,6 +3,7 @@
 // recognized in your jurisdiction.
 // See file LICENSE for detail or copy at http://jsoncpp.sourceforge.net/LICENSE
 
+#include "json/config.h"
 #if !defined(JSON_IS_AMALGAMATION)
 #include <json/assertions.h>
 #include <json/value.h>
@@ -417,6 +418,14 @@ Value::Value(const String& value) {
   value_.string_ = duplicateAndPrefixStringValue(
       value.data(), static_cast<unsigned>(value.length()));
 }
+
+#ifdef JSONCPP_STRING_VIEW
+Value::Value(StringView value) {
+  initBasic(stringValue, true);
+  value_.string_ = duplicateAndPrefixStringValue(
+      value.data(), static_cast<unsigned>(value.length()));
+}
+#endif
 
 Value::Value(const StaticString& value) {
   initBasic(stringValue);
@@ -1110,6 +1119,14 @@ Value const& Value::operator[](const String& key) const {
     return nullSingleton();
   return *found;
 }
+#ifdef JSONCPP_STRING_VIEW
+Value const& Value::operator[](StringView key) const {
+  Value const* found = find(key.data(), key.data() + key.length());
+  if (!found)
+    return nullSingleton();
+  return *found;
+}
+#endif // JSONCPP_STRING_VIEW
 
 Value& Value::operator[](const char* key) {
   return resolveReference(key, key + strlen(key));
@@ -1118,6 +1135,12 @@ Value& Value::operator[](const char* key) {
 Value& Value::operator[](const String& key) {
   return resolveReference(key.data(), key.data() + key.length());
 }
+
+#ifdef JSONCPP_STRING_VIEW
+Value& Value::operator[](StringView key) {
+  return resolveReference(key.data(), key.data() + key.length());
+}
+#endif // JSONCPP_STRING_VIEW
 
 Value& Value::operator[](const StaticString& key) {
   return resolveReference(key.c_str());
@@ -1164,6 +1187,12 @@ Value Value::get(String const& key, Value const& defaultValue) const {
   return get(key.data(), key.data() + key.length(), defaultValue);
 }
 
+#ifdef JSONCPP_STRING_VIEW
+Value Value::get(StringView key, Value const& defaultValue) const {
+  return get(key.data(), key.data() + key.length(), defaultValue);
+}
+#endif // JSONCPP_STRING_VIEW
+
 bool Value::removeMember(const char* begin, const char* end, Value* removed) {
   if (type() != objectValue) {
     return false;
@@ -1184,6 +1213,11 @@ bool Value::removeMember(const char* key, Value* removed) {
 bool Value::removeMember(String const& key, Value* removed) {
   return removeMember(key.data(), key.data() + key.length(), removed);
 }
+#ifdef JSONCPP_STRING_VIEW
+bool Value::removeMember(StringView key, Value* removed) {
+  return removeMember(key.data(), key.data() + key.length(), removed);
+}
+#endif // JSONCPP_STRING_VIEW
 void Value::removeMember(const char* key) {
   JSON_ASSERT_MESSAGE(type() == nullValue || type() == objectValue,
                       "in Json::Value::removeMember(): requires objectValue");
@@ -1194,6 +1228,10 @@ void Value::removeMember(const char* key) {
   value_.map_->erase(actualKey);
 }
 void Value::removeMember(const String& key) { removeMember(key.c_str()); }
+
+#ifdef JSONCPP_STRING_VIEW
+void Value::removeMember(StringView key) { removeMember(key.data()); }
+#endif // JSONCPP_STRING_VIEW
 
 bool Value::removeIndex(ArrayIndex index, Value* removed) {
   if (type() != arrayValue) {
@@ -1229,6 +1267,11 @@ bool Value::isMember(char const* key) const {
 bool Value::isMember(String const& key) const {
   return isMember(key.data(), key.data() + key.length());
 }
+#ifdef JSONCPP_STRING_VIEW
+bool Value::isMember(StringView key) const {
+  return isMember(key.data(), key.data() + key.length());
+}
+#endif // JSONCPP_STRING_VIEW
 
 Value::Members Value::getMemberNames() const {
   JSON_ASSERT_MESSAGE(
@@ -1404,6 +1447,15 @@ void Value::Comments::set(CommentPlacement slot, String comment) {
     ptr_ = std::unique_ptr<Array>(new Array());
   (*ptr_)[slot] = std::move(comment);
 }
+#ifdef JSONCPP_STRING_VIEW
+void Value::Comments::set(CommentPlacement slot, StringView comment) {
+  if (slot >= CommentPlacement::numberOfCommentPlacement)
+    return;
+  if (!ptr_)
+    ptr_ = std::unique_ptr<Array>(new Array());
+  (*ptr_)[slot] = std::move(comment);
+}
+#endif // JSONCPP_STRING_VIEW
 
 void Value::setComment(String comment, CommentPlacement placement) {
   if (!comment.empty() && (comment.back() == '\n')) {
@@ -1416,6 +1468,20 @@ void Value::setComment(String comment, CommentPlacement placement) {
       "in Json::Value::setComment(): Comments must start with /");
   comments_.set(placement, std::move(comment));
 }
+
+#ifdef JSONCPP_STRING_VIEW
+void Value::setComment(StringView comment, CommentPlacement placement) {
+  if (!comment.empty() && (comment.back() == '\n')) {
+    // Always discard trailing newline, to aid indentation.
+    comment = StringView(comment.data(), comment.length() - 1);
+  }
+  JSON_ASSERT(!comment.empty());
+  JSON_ASSERT_MESSAGE(
+      comment[0] == '\0' || comment[0] == '/',
+      "in Json::Value::setComment(): Comments must start with /");
+  comments_.set(placement, comment);
+}
+#endif // #ifdef JSONCPP_STRING_VIEW
 
 bool Value::hasComment(CommentPlacement placement) const {
   return comments_.has(placement);

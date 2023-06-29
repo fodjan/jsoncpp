@@ -6,6 +6,7 @@
 #ifndef JSON_H_INCLUDED
 #define JSON_H_INCLUDED
 
+#include "json/config.h"
 #if !defined(JSON_IS_AMALGAMATION)
 #include "forwards.h"
 #endif // if !defined(JSON_IS_AMALGAMATION)
@@ -342,6 +343,9 @@ public:
    */
   Value(const StaticString& value);
   Value(const String& value);
+#ifdef JSONCPP_STRING_VIEW // W
+  Value(StringView value);
+#endif // #ifdef JSONCPP_STRING_VIE
   Value(bool value);
   Value(std::nullptr_t ptr) = delete;
   Value(const Value& other);
@@ -480,10 +484,21 @@ public:
   /// Access an object value by name, create a null member if it does not exist.
   /// \param key may contain embedded nulls.
   Value& operator[](const String& key);
+#ifdef JSONCPP_STRING_VIEW
+  /// Access an object value by name, create a null member if it does not exist.
+  /// \param key may contain embedded nulls.
+  Value& operator[](StringView key);
+#endif // #ifdef JSONCPP_STRING_VIEW
   /// Access an object value by name, returns null if there is no member with
   /// that name.
   /// \param key may contain embedded nulls.
   const Value& operator[](const String& key) const;
+#ifdef JSONCPP_STRING_VIEW
+  /// Access an object value by name, returns null if there is no member with
+  /// that name.
+  /// \param key may contain embedded nulls.
+  const Value& operator[](StringView key) const;
+#endif // #ifdef JSONCPP_STRING_VIEW
   /** \brief Access an object value by name, create a null member if it does not
    * exist.
    *
@@ -509,6 +524,12 @@ public:
   /// \note deep copy
   /// \param key may contain embedded nulls.
   Value get(const String& key, const Value& defaultValue) const;
+#ifdef JSONCPP_STRING_VIEW
+  /// Return the member named key if it exist, defaultValue otherwise.
+  /// \note deep copy
+  /// \param key may contain embedded nulls.
+  Value get(StringView key, const Value& defaultValue) const;
+#endif // #ifdef JSONCPP_STRING_VIEW
   /// Most general and efficient version of isMember()const, get()const,
   /// and operator[]const
   /// \note As stated elsewhere, behavior is undefined if (end-begin) >= 2^30
@@ -526,6 +547,11 @@ public:
   /// Same as removeMember(const char*)
   /// \param key may contain embedded nulls.
   void removeMember(const String& key);
+#ifdef JSONCPP_STRING_VIEW
+  /// Same as removeMember(const char*)
+  /// \param key may contain embedded nulls.
+  void removeMember(StringView key);
+#endif
   /// Same as removeMember(const char* begin, const char* end, Value* removed),
   /// but 'key' is null-terminated.
   bool removeMember(const char* key, Value* removed);
@@ -536,6 +562,15 @@ public:
    *  \return true iff removed (no exceptions)
    */
   bool removeMember(String const& key, Value* removed);
+#ifdef JSONCPP_STRING_VIEW
+  /** \brief Remove the named map member.
+   *
+   *  Update 'removed' iff removed.
+   *  \param key may contain embedded nulls.
+   *  \return true iff removed (no exceptions)
+   */
+  bool removeMember(StringView key, Value* removed);
+#endif // #ifdef JSONCPP_STRING_VIEW
   /// Same as removeMember(String const& key, Value* removed)
   bool removeMember(const char* begin, const char* end, Value* removed);
   /** \brief Remove the indexed array element.
@@ -555,6 +590,12 @@ public:
   /// Same as isMember(String const& key)const
   bool isMember(const char* begin, const char* end) const;
 
+#ifdef JSONCPP_STRING_VIEW
+  /// Return true if the object has a member named key.
+  /// \param key may contain embedded nulls.
+  bool isMember(StringView key) const;
+#endif // #ifdef JSONCPP_STRING_VIEW
+
   /// \brief Return a list of the member names.
   ///
   /// If null, return an empty list.
@@ -573,6 +614,10 @@ public:
   }
   /// Comments must be //... or /* ... */
   void setComment(String comment, CommentPlacement placement);
+#ifdef JSONCPP_STRING_VIEW
+  /// Comments must be //... or /* ... */
+  void setComment(StringView comment, CommentPlacement placement);
+#endif // #ifdef JSONCPP_STRING_VIEW
   bool hasComment(CommentPlacement placement) const;
   /// Include delimiters and embedded newlines.
   String getComment(CommentPlacement placement) const;
@@ -586,19 +631,23 @@ public:
   iterator end();
 
   /// \brief Returns a reference to the first element in the `Value`.
-  /// Requires that this value holds an array or json object, with at least one element.
+  /// Requires that this value holds an array or json object, with at least one
+  /// element.
   const Value& front() const;
 
   /// \brief Returns a reference to the first element in the `Value`.
-  /// Requires that this value holds an array or json object, with at least one element.
+  /// Requires that this value holds an array or json object, with at least one
+  /// element.
   Value& front();
 
   /// \brief Returns a reference to the last element in the `Value`.
-  /// Requires that value holds an array or json object, with at least one element.
+  /// Requires that value holds an array or json object, with at least one
+  /// element.
   const Value& back() const;
 
   /// \brief Returns a reference to the last element in the `Value`.
-  /// Requires that this value holds an array or json object, with at least one element.
+  /// Requires that this value holds an array or json object, with at least one
+  /// element.
   Value& back();
 
   // Accessors for the [start, limit) range of bytes within the JSON text from
@@ -658,6 +707,9 @@ private:
     bool has(CommentPlacement slot) const;
     String get(CommentPlacement slot) const;
     void set(CommentPlacement slot, String comment);
+#ifdef JSONCPP_STRING_VIEW
+    void set(CommentPlacement slot, StringView comment);
+#endif // #ifdef JSONCPP_STRING_VIEW
 
   private:
     using Array = std::array<String, numberOfCommentPlacement>;
