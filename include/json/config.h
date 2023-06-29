@@ -99,7 +99,7 @@ extern JSON_API int msvc_pre1900_c99_snprintf(char* outBuf, size_t size,
 
 #if __cplusplus >= 201606L
 #include <string_view>
-#define JSONCPP_STRING_VIEW std::string_view
+#define JSONCPP_STRING_VIEW 1
 #endif // if __cplusplus >= 201606L
 
 #if !defined(JSON_IS_AMALGAMATION)
